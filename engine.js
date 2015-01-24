@@ -1,10 +1,16 @@
 // Game Engine
-var Engine = function() {
+var GameEngine = function() {
   // Associative array of users to their bots
   var userFunctions = {};
 
   // Declare all functions
-  var setBotFunc, update, isGameOver, runGame, generateNumbers, generateBoard, generateGameState;
+  var clone, setBotFunc, update, isGameOver, runGame, 
+      generateNumbers, generateBoard, generateGameState;
+
+  // Deep copy of a JSON object
+  clone = function(obj) {
+    return JSON.parse(JSON.stringify(obj));
+  }
 
   // Function called by bots to register their callback
   setBotFunc = function(name, func) {
@@ -18,11 +24,11 @@ var Engine = function() {
     var player = gameState.players[gameState.turn];
 
     // If they are trying to move and can, move them!
-    if(move == 0 && player.y > 0) player.y--;
-    else if(move == 1 && player.x < gameState.boardSize-1) player.x++;
-    else if(move == 2 && player.y < gameState.boardSize-1) player.y++;
-    else if(move == 3 && player.x > 0) player.x--;
-    else if(move == 4) { // If they are tying to eat
+    if(move == "UP" && player.y > 0) player.y--;
+    else if(move == "RIGHT" && player.x < gameState.boardSize-1) player.x++;
+    else if(move == "DOWN" && player.y < gameState.boardSize-1) player.y++;
+    else if(move == "LEFT" && player.x > 0) player.x--;
+    else if(move == "EAT") { // If they are tying to eat
       // Get tile they are on
       var tile = gameState.board[player.x][player.y];
 
@@ -65,18 +71,15 @@ var Engine = function() {
     var results = {};
 
     // Game loop
-    while(true) {
+    while(!isGameOver(gameState.board)) {
       // Give the bot the game state and get their move
-      var move = bots[gameState.turn](JSON.parse(JSON.stringify(gameState)));
+      var move = bots[gameState.turn](clone(gameState));
 
       // Update the gameState
       update(gameState, move);
 
       // Swap turns
       gameState.turn = (gameState.turn+1)%2;
-
-      // Stop loop if game is over
-      if(isGameOver(gameState.board)) break;
     }
 
     // Add data to results (TODO)
@@ -167,11 +170,11 @@ var Engine = function() {
 
     // Game one results
     var game1 = runGame([userFunctions[player1], userFunctions[player2]],
-                        JSON.parse(JSON.stringify(gameState)));
+                        clone(gameState));
 
     // Game two results (swap who goes first!)
     var game2 = runGame([userFunctions[player2], userFunctions[player1]],
-                        JSON.parse(JSON.stringify(gameState)));
+                        clone(gameState));
 
     // Log dat shit (Add to Database - TODO)
     console.log(game1);
@@ -191,7 +194,7 @@ var Engine = function() {
     usersCode[0] = "var makeMove = function(gameData) {\
 var me = gameData.players[gameData.turn];\
 var him = gameData.players[(gameData.turn+1)%2];\
-if(gameData.board[me.x][me.y] != 0) return 4;\
+if(gameData.board[me.x][me.y] != 0) return 'EAT';\
 var closest = -1;\
 for(var i = 0; i < gameData.board.length; i++) {\
 for(var j = 0; j < gameData.board.length; j++) {\
@@ -203,11 +206,11 @@ closest = {x:i, y:j, dist:d};\
 }\
 }\
 }\
-if(closest.y < me.y) return 0;\
-if(closest.x > me.x) return 1;\
-if(closest.y > me.y) return 2;\
-if(closest.x < me.x) return 3;\
-return 4;\
+if(closest.y < me.y) return 'UP';\
+if(closest.x > me.x) return 'RIGHT';\
+if(closest.y > me.y) return 'DOWN';\
+if(closest.x < me.x) return 'LEFT';\
+return 'EAT';\
 };\
 setBotFunc('Near', makeMove);";
 
@@ -230,11 +233,11 @@ closest = {x:i, y:j, dist:d, value:board[i][j].value};\
 }\
 }\
 }\
-if(closest.y < me.y) return 0;\
-if(closest.x > me.x) return 1;\
-if(closest.y > me.y) return 2;\
-if(closest.x < me.x) return 3;\
-return 4;\
+if(closest.y < me.y) return 'UP';\
+if(closest.x > me.x) return 'RIGHT';\
+if(closest.y > me.y) return 'DOWN';\
+if(closest.x < me.x) return 'LEFT';\
+return 'EAT';\
 };\
 setBotFunc('BigNum', makeMove);";
 
@@ -255,6 +258,6 @@ setBotFunc('BigNum', makeMove);";
 }
 
 // Initialize an engine and play match between Near and BigNum
-var engine = new Engine();
+var engine = new GameEngine();
 engine.init();
 engine.startMatch('Near', 'BigNum');
