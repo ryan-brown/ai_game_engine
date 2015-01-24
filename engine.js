@@ -4,7 +4,7 @@ var GameEngine = function() {
   var userFunctions = {};
 
   // Declare all functions
-  var clone, setBotFunc, update, isGameOver, runGame, 
+  var clone, setBotFunc, update, isGameOver, runGame,
       generateNumbers, generateBoard, generateGameState;
 
   // Deep copy of a JSON object
@@ -25,8 +25,8 @@ var GameEngine = function() {
 
     // If they are trying to move and can, move them!
     if(move == "UP" && player.y > 0) player.y--;
-    else if(move == "RIGHT" && player.x < gameState.boardSize-1) player.x++;
-    else if(move == "DOWN" && player.y < gameState.boardSize-1) player.y++;
+    else if(move == "RIGHT" && player.x < gameState.board.length-1) player.x++;
+    else if(move == "DOWN" && player.y < gameState.board.length-1) player.y++;
     else if(move == "LEFT" && player.x > 0) player.x--;
     else if(move == "EAT") { // If they are tying to eat
       // Get tile they are on
@@ -50,6 +50,8 @@ var GameEngine = function() {
         gameState.board[player.x][player.y] = 0;
       }
     }
+
+    return gameState;
   }
 
   // Returns true if there are no more numbers on the board
@@ -103,6 +105,8 @@ var GameEngine = function() {
         i++;
       }
     }
+
+    return board;
   }
 
   // Generate a random board given size(width/height)
@@ -123,36 +127,36 @@ var GameEngine = function() {
     var threes = Math.round(fruitNum*0.1818 + Math.random()-0.5);
 
     // Add 1s, 2s, and 3s to the board!
-    generateNumbers(board, boardSize, ones, 1);
-    generateNumbers(board, boardSize, twos, 2);
-    generateNumbers(board, boardSize, threes, 3);
+    generateNumbers(board, ones, 1);
+    generateNumbers(board, twos, 2);
+    generateNumbers(board, threes, 3);
 
     // Return this bad boy
     return board;
   }
 
   // Generate game data object
-  generateGameState = function() {
+  this.generateGameState = function() {
     // Initializeeee
     var gameState = {};
 
     // Random board size from 5-15
-    gameState.boardSize = Math.floor(Math.random()*11)+5;
+    var boardSize = Math.floor(Math.random()*11)+5;
 
     // Generate the board
-    gameState.board = generateBoard(gameState.boardSize);
+    gameState.board = generateBoard(boardSize);
 
     // Set turn to player 1
     gameState.turn = 0;
 
     // Starting coordinates for players
-    var startX = Math.floor(Math.random()*gameState.boardSize);
-    var startY = Math.floor(Math.random()*gameState.boardSize);
+    var startX = Math.floor(Math.random()*boardSize);
+    var startY = Math.floor(Math.random()*boardSize);
 
     // Are they spawning on a number? New spawn!
     while(gameState.board[startX][startY] != 0) {
-      startX = Math.floor(Math.random()*gameState.boardSize);
-      startY = Math.floor(Math.random()*gameState.boardSize);
+      startX = Math.floor(Math.random()*boardSize);
+      startY = Math.floor(Math.random()*boardSize);
     }
 
     // Add player objects
@@ -181,83 +185,10 @@ var GameEngine = function() {
     console.log(game2);
   }
 
-  // Public function to initialize the bots and grab code from Database
-  this.init = function() {
-    // Array of users code
-    var usersCode = [];
-
-    // Get code from DB!!
-
-    // Ok, examples hard coded in until databases
-
-    // Bot named Near that goes to closest number
-    usersCode[0] = "var makeMove = function(gameData) {\
-var me = gameData.players[gameData.turn];\
-var him = gameData.players[(gameData.turn+1)%2];\
-if(gameData.board[me.x][me.y] != 0) return 'EAT';\
-var closest = -1;\
-for(var i = 0; i < gameData.board.length; i++) {\
-for(var j = 0; j < gameData.board.length; j++) {\
-if(gameData.board[i][j] != 0) {\
-var d = Math.abs(me.x-i) + Math.abs(me.y-j);\
-if(closest == -1 || d < closest.dist) {\
-closest = {x:i, y:j, dist:d};\
-}\
-}\
-}\
-}\
-if(closest.y < me.y) return 'UP';\
-if(closest.x > me.x) return 'RIGHT';\
-if(closest.y > me.y) return 'DOWN';\
-if(closest.x < me.x) return 'LEFT';\
-return 'EAT';\
-};\
-setBotFunc('Near', makeMove);";
-
-    // Bot named BigNum that goes to the nearest high number
-    usersCode[1] = "var makeMove = function(gameData) {\
-var me = gameData.players[gameData.turn];\
-var him = gameData.players[(gameData.turn+1)%2];\
-var board = gameData.board;\
-var closest = -1;\
-for(var i = 0; i < board.length; i++) {\
-for(var j = 0; j < board.length; j++) {\
-var tile = board[i][j];\
-if(tile != 0) {\
-var d = Math.abs(me.x-i) + Math.abs(me.y-j);\
-if(   closest == -1 ||\
-tile.value > closest.value ||\
-(tile.value == closest.value && tile.dist < closest.dist)) {\
-closest = {x:i, y:j, dist:d, value:board[i][j].value};\
-}\
-}\
-}\
-}\
-if(closest.y < me.y) return 'UP';\
-if(closest.x > me.x) return 'RIGHT';\
-if(closest.y > me.y) return 'DOWN';\
-if(closest.x < me.x) return 'LEFT';\
-return 'EAT';\
-};\
-setBotFunc('BigNum', makeMove);";
-
-    // Bots that always move left, just to show how we can load any number of bots
-    usersCode[2] = "var foo = function (gameState) { return 3; }; setBotFunc('Foo', foo);";
-    usersCode[3] = "var bar = function (gameState) { return 3; }; setBotFunc('Bar', bar);";
-    usersCode[4] = "var foobar = function (gameState) { return 3; }; setBotFunc('FooBar', foobar);";
-
-    // Prefix and suffix to fix scoping issues with eval
+  this.evalPlayerCode = function(code) {
     var prefix = "(function() {";
     var suffix = "})();";
 
-    // Register all bots!
-    for(var i = 0; i < usersCode.length; i++) {
-      eval(prefix+usersCode[i]+suffix);
-    }
+    eval(prefix + code + suffix);
   }
 }
-
-// Initialize an engine and play match between Near and BigNum
-var engine = new GameEngine();
-engine.init();
-engine.startMatch('Near', 'BigNum');
