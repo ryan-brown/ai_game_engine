@@ -192,3 +192,5 @@ var GameEngine = function() {
     eval(prefix + code + suffix);
   }
 }
+
+module.exports = GameEngine;
